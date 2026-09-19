@@ -1,3 +1,5 @@
+<img width="529" height="472" alt="icon" src="https://github.com/user-attachments/assets/33a54011-ddd4-4b90-9cd8-f2ea89dc5fdb" />
+
 <img width="480" height="270" alt="CodeFlow_logo_animation_20260920004234" src="https://github.com/user-attachments/assets/e447c5a2-2494-47ac-936b-9ce0b3b481bb"/>
 
 
@@ -5,7 +7,7 @@
 
 A desktop project manager for developers — calendar, kanban tasks, deadline notifications, and a built-in file explorer with one-click "Open in VSCode". Built with Python + [pywebview](https://pywebview.flowrl.com/).
 
-![CodeFlow screenshot](docs/screenshot.png)
+<img width="529" height="472" alt="icon" src="https://github.com/user-attachments/assets/60a96990-bfd1-43cd-a72c-d9fd9ab082c1" />
 
 ## Features
 
