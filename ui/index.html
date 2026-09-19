@@ -450,7 +450,9 @@
 
   function drawCalendar(allTasks) {
     const { year, month } = calState;
-    const monthNames = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+    const monthNames = currentLang === 'pt'
+      ? ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro']
+      : ['January','February','March','April','May','June','July','August','September','October','November','December'];
     document.getElementById('cal-label').textContent = `${monthNames[month]} ${year}`;
 
     const firstDay = new Date(year, month, 1);
@@ -467,7 +469,9 @@
       byDay[key].push(t);
     });
 
-    const weekDays = ['seg','ter','qua','qui','sex','sáb','dom'];
+    const weekDays = currentLang === 'pt'
+      ? ['seg','ter','qua','qui','sex','sáb','dom']
+      : ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
     let html = weekDays.map(d => `<div class="cal-weekday">${d}</div>`).join('');
 
     for (let i = 0; i < startOffset; i++) html += `<div class="cal-cell empty-cell"></div>`;
@@ -503,7 +507,7 @@
     const box = document.getElementById('cal-day-detail');
     if (tasks.length === 0) { box.style.display = 'none'; return; }
     box.style.display = 'block';
-    const dateLabel = new Date(key).toLocaleDateString('pt-PT', { weekday:'long', day:'numeric', month:'long' });
+    const dateLabel = new Date(key).toLocaleDateString(currentLang === 'pt' ? 'pt-PT' : 'en-US', { weekday:'long', day:'numeric', month:'long' });
     box.innerHTML = `
       <div class="card-label">${dateLabel.toUpperCase()}</div>
       ${tasks.map(t => `
@@ -816,7 +820,8 @@
 
   function formatDue(iso) {
     const d = new Date(iso);
-    return d.toLocaleDateString('pt-PT', { day:'2-digit', month:'2-digit' }) + ' ' + d.toLocaleTimeString('pt-PT', { hour:'2-digit', minute:'2-digit' });
+    const locale = currentLang === 'pt' ? 'pt-PT' : 'en-US';
+    return d.toLocaleDateString(locale, { day:'2-digit', month:'2-digit' }) + ' ' + d.toLocaleTimeString(locale, { hour:'2-digit', minute:'2-digit' });
   }
 
   async function submitTask(projectId) {

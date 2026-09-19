@@ -1,3 +1,4 @@
+import os
 import threading
 import webview
 from PIL import Image
@@ -12,7 +13,9 @@ def start_tray(icon_path, window):
 
     def on_quit(icon_obj, item):
         icon_obj.stop()
-        window.destroy()
+        # Hard-exit guarantees the process is fully gone from Task Manager,
+        # instead of possibly lingering due to pywebview's own event loop.
+        os._exit(0)
 
     menu = pystray.Menu(
         pystray.MenuItem("Open CodeFlow", on_show, default=True),

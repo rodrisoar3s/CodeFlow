@@ -1,7 +1,16 @@
+import os
+import sys
 import sqlite3
 from pathlib import Path
 
-DB_PATH = Path(__file__).parent.parent / "data" / "manager.db"
+if getattr(sys, "frozen", False):
+    # Running as a packaged .exe: store user data in a persistent, writable
+    # location instead of PyInstaller's temporary extraction folder,
+    # which gets deleted every time the app closes.
+    DB_PATH = Path(os.getenv("APPDATA", str(Path.home()))) / "CodeFlow" / "manager.db"
+else:
+    DB_PATH = Path(__file__).parent.parent / "data" / "manager.db"
+
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 

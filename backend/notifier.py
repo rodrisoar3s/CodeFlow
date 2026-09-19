@@ -1,4 +1,5 @@
 import os
+import sys
 import threading
 import webview
 from backend.i18n import tr
@@ -9,8 +10,11 @@ try:
 except ImportError:
     HAS_WINSOUND = False
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-SOUNDS_DIR = os.path.join(BASE_DIR, "..", "assets", "sounds")
+if getattr(sys, "_MEIPASS", None):
+    SOUNDS_DIR = os.path.join(sys._MEIPASS, "assets", "sounds")
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    SOUNDS_DIR = os.path.join(BASE_DIR, "..", "assets", "sounds")
 
 # Notification type -> color + default sound (label comes from i18n)
 STYLES = {
