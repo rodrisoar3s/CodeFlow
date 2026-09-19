@@ -1,0 +1,24 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Dados pessoais - nunca subir a base de dados de alguém
+data/*.db
+data/*.sqlite
+
+# Sons pessoais (a pasta fica, os ficheiros de cada um não)
+assets/sounds/*.wav
+!assets/sounds/README.txt
+
+# IDE / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Build artifacts (se algum dia se gerar .exe)
+build/
+dist/
+*.spec

@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<title>CodeFlow</title>
+<style>
+  :root{
+    --bg: #1e1e1e;
+    --bg-panel: #252526;
+    --bg-panel-2: #2d2d2d;
+    --border: #3c3c3c;
+    --text: #d4d4d4;
+    --text-dim: #8a8a8a;
+    --blue: #007acc;
+    --blue-soft: rgba(0,122,204,0.15);
+    --green: #4ec9b0;
+    --yellow: #d7ba7d;
+    --red: #f14c4c;
+    --font-ui: -apple-system, "Segoe UI", Inter, sans-serif;
+    --font-mono: "JetBrains Mono", "Cascadia Code", "SF Mono", monospace;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html, body{ height:100%; background:var(--bg); color:var(--text); font-family:var(--font-ui); font-size:14px; -webkit-font-smoothing:antialiased; }
+  .app{ display:grid; grid-template-columns:220px 1fr; height:100vh; overflow:hidden; }
+
+  .sidebar{ background:var(--bg-panel); border-right:1px solid var(--border); display:flex; flex-direction:column; padding:16px 0; }
+  .brand{ display:flex; align-items:center; gap:8px; padding:0 16px 20px 16px; border-bottom:1px solid var(--border); margin-bottom:12px; }
+  .brand-dot{ width:8px; height:8px; border-radius:50%; background:var(--blue); box-shadow:0 0 8px var(--blue); }
+  .brand-name{ font-family:var(--font-mono); font-size:13px; font-weight:600; letter-spacing:0.2px; }
+  .nav{ display:flex; flex-direction:column; gap:2px; padding:0 8px; }
+  .nav-item{ display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:6px; color:var(--text-dim); text-decoration:none; font-size:13px; cursor:pointer; border-left:2px solid transparent; transition:background .12s ease, color .12s ease; user-select:none; }
+  .nav-item:hover{ background:var(--bg-panel-2); color:var(--text); }
+  .nav-item.active{ background:var(--blue-soft); color:#fff; border-left:2px solid var(--blue); }
+  .nav-icon{ width:16px; height:16px; flex-shrink:0; opacity:0.85; }
+  .sidebar-footer{ margin-top:auto; padding:12px 16px 0 16px; border-top:1px solid var(--border); font-family:var(--font-mono); font-size:11px; color:var(--text-dim); }
+
+  .main{ overflow-y:auto; padding:28px 36px 48px 36px; }
+  .top-row{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:24px; }
+  .page-title{ font-size:20px; font-weight:600; color:#fff; }
+  .page-date{ font-family:var(--font-mono); font-size:12px; color:var(--text-dim); }
+
+  .btn{ background:var(--blue); color:#fff; border:none; padding:8px 14px; border-radius:6px; font-size:13px; cursor:pointer; font-family:var(--font-ui); }
+  .btn:hover{ background:#0e8fe0; }
+  .btn-ghost{ background:transparent; border:1px solid var(--border); color:var(--text); }
+  .btn-ghost:hover{ background:var(--bg-panel-2); }
+  .btn-sm{ padding:5px 10px; font-size:12px; }
+  .btn-danger{ background:transparent; color:var(--red); border:1px solid rgba(241,76,76,0.4); }
+  .btn-danger:hover{ background:rgba(241,76,76,0.1); }
+
+  .grid{ display:grid; grid-template-columns:1.1fr 0.9fr; gap:16px; margin-bottom:16px; }
+  .card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:8px; padding:18px 20px; }
+  .card-label{ font-size:11px; color:var(--text-dim); margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; letter-spacing:.4px; }
+
+  .today-item{ display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); }
+  .today-item:last-child{ border-bottom:none; }
+  .status-dot{ width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+  .status-dot.progress{ background:var(--blue); }
+  .status-dot.blocked{ background:var(--red); }
+  .status-dot.todo{ background:var(--text-dim); }
+  .status-dot.done{ background:var(--green); }
+  .today-text{ flex:1; font-size:13px; }
+  .today-project{ font-size:11px; color:var(--text-dim); font-family:var(--font-mono); }
+
+  .earn-value{ font-family:var(--font-mono); font-size:34px; font-weight:600; color:var(--green); line-height:1; margin-bottom:6px; }
+  .earn-compare{ font-size:12px; color:var(--text-dim); }
+
+  .empty{ color:var(--text-dim); font-size:13px; padding:20px 0; text-align:center; }
+
+  /* PROJETOS */
+  .projects-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:14px; }
+  .project-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:8px; padding:16px; display:flex; flex-direction:column; gap:8px; }
+  .project-name{ font-size:14px; font-weight:600; color:#fff; }
+  .project-meta{ font-size:11px; color:var(--text-dim); font-family:var(--font-mono); word-break:break-all; }
+  .project-value{ font-family:var(--font-mono); font-size:18px; color:var(--green); }
+  .project-actions{ display:flex; gap:8px; margin-top:8px; }
+
+  /* MODAL */
+  .modal-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:50; }
+  .modal-backdrop.open{ display:flex; }
+  .modal{ background:var(--bg-panel); border:1px solid var(--border); border-radius:10px; padding:22px; width:380px; display:flex; flex-direction:column; gap:12px; }
+  .modal h3{ font-size:15px; color:#fff; margin-bottom:4px; }
+  .field label{ display:block; font-size:11px; color:var(--text-dim); margin-bottom:5px; }
+  .field input{ width:100%; background:var(--bg-panel-2); border:1px solid var(--border); border-radius:6px; padding:8px 10px; color:var(--text); font-size:13px; font-family:var(--font-ui); }
+  .field-row{ display:flex; gap:8px; }
+  .field-row .field{ flex:1; }
+  .field-folder{ display:flex; gap:6px; }
+  .field-folder input{ flex:1; }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:8px; }
+
+  /* CALENDÁRIO */
+  .cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+  .cal-weekday{ font-size:11px; color:var(--text-dim); text-align:center; padding:6px 0; font-family:var(--font-mono); }
+  .cal-cell{ min-height:78px; background:var(--bg-panel-2); border-radius:6px; padding:6px; cursor:pointer; transition:background .1s; display:flex; flex-direction:column; gap:3px; }
+  .cal-cell:hover{ background:#333; }
+  .cal-cell.empty-cell{ background:transparent; cursor:default; }
+  .cal-cell.cal-today{ border:1px solid var(--blue); }
+  .cal-daynum{ font-size:12px; color:var(--text-dim); font-family:var(--font-mono); }
+  .cal-tasks{ display:flex; flex-direction:column; gap:2px; overflow:hidden; }
+  .cal-task-chip{ font-size:10px; padding:2px 5px; border-radius:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; background:var(--blue-soft); color:#8ec9ec; }
+  .cal-task-chip.chip-overdue{ background:rgba(241,76,76,0.15); color:#f18b8b; }
+  .cal-task-chip.chip-done{ background:rgba(78,201,176,0.15); color:var(--green); text-decoration:line-through; }
+  .cal-task-more{ font-size:10px; color:var(--text-dim); padding:0 5px; }
+
+  /* TAREFAS NO PROJETO */
+  .tasks-box{ border-top:1px solid var(--border); margin-top:10px; padding-top:10px; }
+  .task-row{ display:flex; align-items:center; gap:8px; padding:6px 0; font-size:12px; }
+  .task-title{ flex:1; }
+  .task-title.task-done{ text-decoration:line-through; color:var(--text-dim); }
+  .task-due{ font-family:var(--font-mono); font-size:11px; color:var(--text-dim); }
+  .add-task-row{ display:flex; gap:6px; margin-top:8px; }
+  .add-task-row input{ background:var(--bg-panel-2); border:1px solid var(--border); border-radius:5px; padding:6px 8px; color:var(--text); font-size:12px; }
+  .add-task-row input[type="text"]{ flex:1; }
+
+  /* EXPLORER */
+  .explorer-box{ border-top:1px solid var(--border); margin-top:10px; padding-top:10px; }
+  .explorer-breadcrumb{ font-size:11px; color:var(--text-dim); font-family:var(--font-mono); margin-bottom:8px; }
+  .crumb{ cursor:pointer; }
+  .crumb:hover{ color:var(--blue); text-decoration:underline; }
+  .crumb-sep{ margin:0 4px; }
+  .explorer-list{ max-height:180px; overflow-y:auto; border:1px solid var(--border); border-radius:6px; }
+  .explorer-row{ display:flex; align-items:center; gap:8px; padding:6px 10px; font-size:12px; cursor:pointer; }
+  .explorer-row:hover{ background:var(--bg-panel-2); }
+  .explorer-icon{ font-size:12px; }
+  .editor-header{ display:flex; justify-content:space-between; align-items:center; margin-top:10px; }
+  .editor-filename{ font-size:11px; color:var(--text-dim); font-family:var(--font-mono); }
+  .editor-textarea{ width:100%; height:220px; margin-top:6px; background:var(--bg-panel-2); border:1px solid var(--border); border-radius:6px; padding:10px; color:var(--text); font-family:var(--font-mono); font-size:12px; resize:vertical; }
+
+  /* PESQUISA */
+  .search-input{ width:100%; background:var(--bg-panel-2); border:1px solid var(--border); border-radius:6px; padding:9px 12px; color:var(--text); font-size:13px; margin-bottom:16px; }
+
+  /* PIN */
+  .project-name-row{ display:flex; justify-content:space-between; align-items:center; }
+  .pin-btn{ cursor:pointer; opacity:0.35; font-size:13px; }
+  .pin-btn.pin-active{ opacity:1; }
+
+  /* KANBAN */
+  .kanban{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:4px; }
+  .kanban-col{ background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:8px; min-height:80px; }
+  .kanban-col-title{ font-size:10px; color:var(--text-dim); font-family:var(--font-mono); margin-bottom:8px; display:flex; justify-content:space-between; }
+  .kanban-count{ opacity:0.6; }
+  .kanban-cards{ display:flex; flex-direction:column; gap:6px; }
+  .task-card{ background:var(--bg-panel-2); border:1px solid var(--border); border-radius:5px; padding:8px; cursor:grab; }
+  .task-card:hover{ border-color:var(--blue); }
+  .task-card-title{ font-size:12px; margin-bottom:6px; }
+  .task-card-title.task-done{ text-decoration:line-through; color:var(--text-dim); }
+  .task-card-meta{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  .priority-badge{ font-size:9px; padding:2px 6px; border-radius:3px; font-family:var(--font-mono); }
+  .priority-alta{ background:rgba(241,76,76,0.15); color:var(--red); }
+  .priority-media{ background:rgba(215,186,125,0.15); color:var(--yellow); }
+  .priority-baixa{ background:rgba(0,122,204,0.15); color:#6cb6e8; }
+
+  /* MODAL TAREFA */
+  .field-select{ width:100%; background:var(--bg-panel-2); border:1px solid var(--border); border-radius:6px; padding:8px 10px; color:var(--text); font-size:13px; }
+  .field-textarea{ width:100%; min-height:70px; background:var(--bg-panel-2); border:1px solid var(--border); border-radius:6px; padding:8px 10px; color:var(--text); font-size:13px; font-family:var(--font-ui); resize:vertical; }
+  .subtask-row{ display:flex; align-items:center; gap:8px; padding:4px 0; font-size:12px; }
+  .subtask-row span:not(.subtask-del){ flex:1; }
+  .subtask-del{ cursor:pointer; color:var(--red); opacity:0.6; padding:0 4px; }
+  .subtask-del:hover{ opacity:1; }
+
+  /* NOVA TAREFA (form) */
+  .add-task-toggle{ margin-top:10px; }
+  .add-task-form{ margin-top:10px; padding:14px; background:var(--bg); border:1px solid var(--border); border-radius:8px; display:flex; flex-direction:column; gap:10px; }
+  .add-task-form input, .add-task-form select{ width:100%; background:var(--bg-panel-2); border:1px solid var(--border); border-radius:6px; padding:8px 10px; color:var(--text); font-size:13px; font-family:var(--font-ui); }
+  .add-task-form .field-row{ display:flex; gap:10px; }
+  .add-task-form .field-row .field{ flex:1; }
+
+  /* STATUS DE PROJETO */
+  .status-pill{ font-size:10px; padding:2px 7px; border-radius:10px; font-family:var(--font-mono); font-weight:400; vertical-align:middle; }
+  .status-pill.status-active{ background:var(--blue-soft); color:#6cb6e8; }
+  .status-pill.status-delivered{ background:rgba(215,186,125,0.15); color:var(--yellow); }
+  .status-pill.status-paid{ background:rgba(78,201,176,0.15); color:var(--green); }
+  .due-overdue{ color:var(--red) !important; }
+
+  /* SETTINGS */
+  .sound-row{ display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border); }
+  .sound-row:last-child{ border-bottom:none; }
+  .sound-kind-label{ font-size:13px; }
+  .sound-file-name{ font-size:11px; color:var(--text-dim); font-family:var(--font-mono); margin-top:2px; }
+
+  /* TEMA CLARO */
+  :root[data-theme="light"]{
+    --bg: #f5f5f5;
+    --bg-panel: #ffffff;
+    --bg-panel-2: #eeeeee;
+    --border: #dcdcdc;
+    --text: #1e1e1e;
+    --text-dim: #6b6b6b;
+    --blue-soft: rgba(0,122,204,0.1);
+  }
+  :root[data-theme="light"] .page-title,
+  :root[data-theme="light"] .project-name,
+  :root[data-theme="light"] .today-text,
+  :root[data-theme="light"] .task-card-title{ color:#111; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-dot"></span><span class="brand-name">codeflow</span></div>
+    <nav class="nav">
+      <div class="nav-item active" data-view="home">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        <span class="nav-label">Home</span>
+      </div>
+      <div class="nav-item" data-view="calendar">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>
+        <span class="nav-label">Calendar</span>
+      </div>
+      <div class="nav-item" data-view="projects">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7l3-4h4l2 3h9v13H3z"/></svg>
+        <span class="nav-label">Projects</span>
+      </div>
+      <div class="nav-item" data-view="settings">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 005.4 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        <span class="nav-label">Settings</span>
+      </div>
+    </nav>
+    <div class="sidebar-footer">v0.2 · local</div>
+  </aside>
+
+  <main class="main" id="main"></main>
+</div>
+
+<!-- MODAL: novo/editar projeto -->
+<div class="modal-backdrop" id="modal-project">
+  <div class="modal">
+    <h3 id="pm-title">New project</h3>
+    <div class="field">
+      <label data-i18n="name">Name</label>
+      <input type="text" id="np-name" placeholder="ex: loja-xpto">
+    </div>
+    <div class="field">
+      <label data-i18n="description">Description / context</label>
+      <textarea id="np-desc" class="field-textarea" placeholder="Scope, requirements, client notes..."></textarea>
+    </div>
+    <div class="field">
+      <label data-i18n="project_folder">Project folder</label>
+      <div class="field-folder">
+        <input type="text" id="np-folder" placeholder="C:\..." readonly>
+        <button class="btn btn-ghost btn-sm" data-i18n="choose" onclick="pickFolder()">Choose</button>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label data-i18n="agreed_value">Agreed value (€)</label>
+        <input type="number" id="np-value" placeholder="0" min="0">
+      </div>
+      <div class="field">
+        <label data-i18n="final_deadline">Final delivery deadline</label>
+        <input type="datetime-local" id="np-due">
+      </div>
+    </div>
+    <div class="field">
+      <label data-i18n="warn_hours">Warn how many hours before the deadline</label>
+      <input type="number" id="np-warn" value="48">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-i18n="cancel" onclick="closeModal('modal-project')">Cancel</button>
+      <button class="btn" id="pm-submit-btn" onclick="submitProject()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: detalhe da tarefa -->
+<div class="modal-backdrop" id="modal-task">
+  <div class="modal" style="width:420px;">
+    <h3 id="td-title">Task</h3>
+
+    <div class="field">
+      <label data-i18n="priority">Priority</label>
+      <select id="td-priority" class="field-select">
+        <option value="baixa" data-i18n="priority_baixa">Low</option>
+        <option value="media" data-i18n="priority_media">Medium</option>
+        <option value="alta" data-i18n="priority_alta">High</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label data-i18n="task_notes">Notes</label>
+      <textarea id="td-notes" class="field-textarea" placeholder="Links, decisions, blocking reason..."></textarea>
+    </div>
+
+    <div class="field">
+      <label data-i18n="subtasks">Subtasks</label>
+      <div id="td-subtasks-list"></div>
+      <div class="add-task-row" style="margin-top:6px;">
+        <input type="text" id="td-new-subtask" data-i18n-placeholder="new_subtask" placeholder="New subtask...">
+        <button class="btn btn-sm" onclick="addSubtask()">+</button>
+      </div>
+    </div>
+
+    <div class="modal-actions" style="justify-content:space-between;">
+      <button class="btn btn-danger" data-i18n="delete_task_btn" onclick="deleteCurrentTask()">Delete task</button>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-ghost" data-i18n="close" onclick="closeModal('modal-task')">Close</button>
+        <button class="btn" data-i18n="save" onclick="saveTaskDetail()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let pywebviewReady = false;
+  let currentLang = 'en';
+  let currentTheme = 'dark';
+
+  const translations = {
+    en: {
+      nav_home: 'Home', nav_calendar: 'Calendar', nav_projects: 'Projects', nav_settings: 'Settings',
+      home_title: 'Home', this_week: 'THIS WEEK', no_deadlines_week: 'No deadlines in the next 7 days.',
+      total_earned: 'TOTAL EARNED (paid projects)', paid_count: 'paid', delivered_unpaid: 'delivered, unpaid', active_count: 'active',
+      projects_label: 'PROJECTS', no_projects: 'No projects yet. Create the first one in the Projects section.',
+      projects_title: 'Projects', new_project: '+ New project', search_placeholder: 'Search projects...',
+      no_projects_cta: 'No projects yet. Click "+ New project" to start.',
+      no_folder: 'no folder associated', deadline_label: 'due', open_vscode: 'Open in VSCode', tasks_btn: 'Tasks',
+      explorer_btn: 'Explorer', edit_btn: 'Edit', delete_btn: 'Delete',
+      status_active: 'Active', status_delivered: 'Delivered', status_paid: 'Paid',
+      col_todo: 'To do', col_progress: 'In progress', col_blocked: 'Blocked', col_done: 'Done',
+      priority_alta: 'High', priority_media: 'Medium', priority_baixa: 'Low',
+      new_task: '+ New task', task_title: 'Title', due_date: 'Due date', priority: 'Priority',
+      warn_hours: 'Warn how many hours before the deadline', cancel: 'Cancel', create: 'Create', save: 'Save',
+      no_tasks: 'No tasks.', task_notes: 'Notes', subtasks: 'Subtasks', new_subtask: 'New subtask...',
+      close: 'Close', delete_task_btn: 'Delete task',
+      new_project_title: 'New project', edit_project_title: 'Edit project', name: 'Name',
+      description: 'Description / context', project_folder: 'Project folder', choose: 'Choose',
+      agreed_value: 'Agreed value (€)', final_deadline: 'Final delivery deadline',
+      calendar_title: 'Calendar', settings_title: 'Settings',
+      settings_language: 'Language', settings_theme: 'Theme', theme_dark: 'Dark (VSCode)', theme_light: 'Light',
+      settings_sounds: 'Notification sounds', sound_aviso: 'Warning (orange) — deadline approaching',
+      sound_expirado: 'Expired (red) — deadline passed', sound_sucesso: 'Success (green) — delivered',
+      choose_sound: 'Choose .wav', test: 'Test', default_sound: 'default beep',
+      pin_title: 'Pin',
+    },
+    pt: {
+      nav_home: 'Home', nav_calendar: 'Calendário', nav_projects: 'Projetos', nav_settings: 'Configurações',
+      home_title: 'Home', this_week: 'ESTA SEMANA', no_deadlines_week: 'Sem prazos nos próximos 7 dias.',
+      total_earned: 'GANHO TOTAL (projetos pagos)', paid_count: 'pago(s)', delivered_unpaid: 'entregue(s) por pagar', active_count: 'ativo(s)',
+      projects_label: 'PROJETOS', no_projects: 'Ainda não tens projetos. Cria o primeiro na secção Projetos.',
+      projects_title: 'Projetos', new_project: '+ Novo projeto', search_placeholder: 'Pesquisar projetos...',
+      no_projects_cta: 'Sem projetos ainda. Clica em "+ Novo projeto" para começar.',
+      no_folder: 'sem pasta associada', deadline_label: 'entrega', open_vscode: 'Abrir no VSCode', tasks_btn: 'Tarefas',
+      explorer_btn: 'Explorer', edit_btn: 'Editar', delete_btn: 'Apagar',
+      status_active: 'Ativo', status_delivered: 'Entregue', status_paid: 'Pago',
+      col_todo: 'A fazer', col_progress: 'Em progresso', col_blocked: 'Bloqueado', col_done: 'Feito',
+      priority_alta: 'Alta', priority_media: 'Média', priority_baixa: 'Baixa',
+      new_task: '+ Nova tarefa', task_title: 'Título', due_date: 'Prazo', priority: 'Prioridade',
+      warn_hours: 'Avisar quantas horas antes do prazo', cancel: 'Cancelar', create: 'Criar', save: 'Guardar',
+      no_tasks: 'Sem tarefas.', task_notes: 'Notas', subtasks: 'Subtarefas', new_subtask: 'Nova subtarefa...',
+      close: 'Fechar', delete_task_btn: 'Apagar tarefa',
+      new_project_title: 'Novo projeto', edit_project_title: 'Editar projeto', name: 'Nome',
+      description: 'Descrição / contexto', project_folder: 'Pasta do projeto', choose: 'Escolher',
+      agreed_value: 'Valor combinado (€)', final_deadline: 'Prazo de entrega final',
+      calendar_title: 'Calendário', settings_title: 'Configurações',
+      settings_language: 'Idioma', settings_theme: 'Tema', theme_dark: 'Escuro (VSCode)', theme_light: 'Claro',
+      settings_sounds: 'Sons de notificação', sound_aviso: 'Aviso (laranja) — prazo a aproximar-se',
+      sound_expirado: 'Expirado (vermelho) — prazo passou', sound_sucesso: 'Sucesso (verde) — entregue',
+      choose_sound: 'Escolher .wav', test: 'Testar', default_sound: 'beep padrão',
+      pin_title: 'Fixar',
+    },
+  };
+
+  function t(key) {
+    return (translations[currentLang] && translations[currentLang][key]) || translations.en[key] || key;
+  }
+
+  async function loadPreferences() {
+    if (!pywebviewReady) return;
+    const settings = await api('get_settings');
+    currentLang = settings.lang || 'en';
+    currentTheme = settings.theme || 'dark';
+    applyTheme();
+    applyStaticTranslations();
+  }
+
+  function applyTheme() {
+    document.documentElement.setAttribute('data-theme', currentTheme);
+  }
+
+  function updateSidebarLabels() {
+    document.querySelector('[data-view="home"] .nav-label').textContent = t('nav_home');
+    document.querySelector('[data-view="calendar"] .nav-label').textContent = t('nav_calendar');
+    document.querySelector('[data-view="projects"] .nav-label').textContent = t('nav_projects');
+    document.querySelector('[data-view="settings"] .nav-label').textContent = t('nav_settings');
+  }
+
+  function applyStaticTranslations() {
+    updateSidebarLabels();
+    document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+  }
+
+  window.addEventListener('pywebviewready', async () => { pywebviewReady = true; await loadPreferences(); render(); });
+
+  async function api(method, ...args) {
+    if (!window.pywebview) return null;
+    return await window.pywebview.api[method](...args);
+  }
+
+  // ---------- ROUTING ----------
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+      render(item.dataset.view);
+    });
+  });
+
+  function currentView() {
+    return document.querySelector('.nav-item.active')?.dataset.view || 'home';
+  }
+
+  async function render(view) {
+    view = view || currentView();
+    const main = document.getElementById('main');
+    if (view === 'home') return renderHome(main);
+    if (view === 'projects') return renderProjects(main);
+    if (view === 'calendar') return renderCalendar(main);
+    if (view === 'settings') return renderSettings(main);
+  }
+
+  // ---------- CALENDAR ----------
+  let calState = { year: new Date().getFullYear(), month: new Date().getMonth() };
+
+  async function renderCalendar(main) {
+    const allTasks = pywebviewReady ? await api('get_all_tasks') : [];
+    main.innerHTML = `
+      <div class="top-row">
+        <div class="page-title">${t('calendar_title')}</div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button class="btn btn-ghost btn-sm" onclick="calNav(-1)">‹</button>
+          <span id="cal-label" style="font-family:var(--font-mono); font-size:13px; min-width:140px; text-align:center; display:inline-block;"></span>
+          <button class="btn btn-ghost btn-sm" onclick="calNav(1)">›</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="cal-grid" id="cal-grid"></div>
+      </div>
+      <div class="card" id="cal-day-detail" style="margin-top:16px; display:none;"></div>
+    `;
+    drawCalendar(allTasks);
+  }
+
+  function calNav(delta) {
+    calState.month += delta;
+    if (calState.month < 0) { calState.month = 11; calState.year--; }
+    if (calState.month > 11) { calState.month = 0; calState.year++; }
+    render('calendar');
+  }
+
+  function drawCalendar(allTasks) {
+    const { year, month } = calState;
+    const monthNames = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+    document.getElementById('cal-label').textContent = `${monthNames[month]} ${year}`;
+
+    const firstDay = new Date(year, month, 1);
+    const startOffset = (firstDay.getDay() + 6) % 7; // semana começa segunda
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const todayStr = new Date().toDateString();
+
+    // group tasks by day (YYYY-MM-DD)
+    const byDay = {};
+    allTasks.forEach(t => {
+      const d = new Date(t.due_date);
+      const key = d.toDateString();
+      if (!byDay[key]) byDay[key] = [];
+      byDay[key].push(t);
+    });
+
+    const weekDays = ['seg','ter','qua','qui','sex','sáb','dom'];
+    let html = weekDays.map(d => `<div class="cal-weekday">${d}</div>`).join('');
+
+    for (let i = 0; i < startOffset; i++) html += `<div class="cal-cell empty-cell"></div>`;
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateObj = new Date(year, month, day);
+      const key = dateObj.toDateString();
+      const tasks = byDay[key] || [];
+      const isToday = key === todayStr;
+      const hasOverdue = tasks.some(t => new Date(t.due_date) < new Date() && t.status !== 'done');
+
+      const maxShow = 2;
+      const shown = tasks.slice(0, maxShow);
+      const extra = tasks.length - shown.length;
+
+      html += `
+        <div class="cal-cell ${isToday ? 'cal-today' : ''}" onclick="showDay('${key}')">
+          <div class="cal-daynum">${day}</div>
+          <div class="cal-tasks">
+            ${shown.map(t => `<div class="cal-task-chip ${t.status === 'done' ? 'chip-done' : (new Date(t.due_date) < new Date() ? 'chip-overdue' : 'chip-normal')}">${t.title}</div>`).join('')}
+            ${extra > 0 ? `<div class="cal-task-more">+${extra}</div>` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    document.getElementById('cal-grid').innerHTML = html;
+    window._calTasksByDay = byDay;
+  }
+
+  function showDay(key) {
+    const tasks = window._calTasksByDay[key] || [];
+    const box = document.getElementById('cal-day-detail');
+    if (tasks.length === 0) { box.style.display = 'none'; return; }
+    box.style.display = 'block';
+    const dateLabel = new Date(key).toLocaleDateString('pt-PT', { weekday:'long', day:'numeric', month:'long' });
+    box.innerHTML = `
+      <div class="card-label">${dateLabel.toUpperCase()}</div>
+      ${tasks.map(t => `
+        <div class="today-item">
+          <span class="status-dot ${t.status}"></span>
+          <span class="today-text">${t.title}</span>
+          <span class="today-project">${t.project_name}</span>
+        </div>
+      `).join('')}
+    `;
+  }
+  function renderPlaceholder(main, title, msg) {
+    main.innerHTML = `
+      <div class="top-row"><div class="page-title">${title}</div></div>
+      <div class="card"><div class="empty">${msg}</div></div>
+    `;
+  }
+
+  // ---------- SETTINGS ----------
+  async function renderSettings(main) {
+    const settings = pywebviewReady ? await api('get_settings') : {};
+    const soundLabel = (kind) => settings['sound_' + kind] ? settings['sound_' + kind].split(/[\\/]/).pop() : t('default_sound');
+
+    main.innerHTML = `
+      <div class="top-row"><div class="page-title">${t('settings_title')}</div></div>
+
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-label">${t('settings_language')}</div>
+        <select class="field-select" id="settings-lang" onchange="onChangeLang(this.value)" style="max-width:220px;">
+          <option value="en" ${currentLang === 'en' ? 'selected' : ''}>English</option>
+          <option value="pt" ${currentLang === 'pt' ? 'selected' : ''}>Português</option>
+        </select>
+      </div>
+
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-label">${t('settings_theme')}</div>
+        <select class="field-select" id="settings-theme" onchange="onChangeTheme(this.value)" style="max-width:220px;">
+          <option value="dark" ${currentTheme === 'dark' ? 'selected' : ''}>${t('theme_dark')}</option>
+          <option value="light" ${currentTheme === 'light' ? 'selected' : ''}>${t('theme_light')}</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <div class="card-label">${t('settings_sounds')}</div>
+        ${['aviso', 'expirado', 'sucesso'].map(kind => `
+          <div class="sound-row">
+            <div>
+              <div class="sound-kind-label">${t('sound_' + kind)}</div>
+              <div class="sound-file-name">${soundLabel(kind)}</div>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-ghost btn-sm" onclick="chooseSound('${kind}')">${t('choose_sound')}</button>
+              <button class="btn btn-ghost btn-sm" onclick="api('test_notification', '${kind}')">${t('test')}</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  async function onChangeLang(lang) {
+    currentLang = lang;
+    await api('set_setting', 'lang', lang);
+    applyStaticTranslations();
+    render(currentView());
+  }
+
+  async function onChangeTheme(theme) {
+    currentTheme = theme;
+    await api('set_setting', 'theme', theme);
+    applyTheme();
+  }
+
+  async function chooseSound(kind) {
+    const path = await api('pick_file', ["Audio Files (*.wav)"]);
+    if (!path) return;
+    await api('set_setting', 'sound_' + kind, path);
+    render('settings');
+  }
+
+  // ---------- HOME ----------
+  async function renderHome(main) {
+    const projects = pywebviewReady ? await api('get_projects') : [];
+    const weekItems = pywebviewReady ? await api('get_week_summary') : [];
+    const paidProjects = projects.filter(p => p.status === 'paid');
+    const totalEarn = paidProjects.reduce((s, p) => s + (p.value_eur || 0), 0);
+
+    const now = new Date();
+    const in7days = new Date(now.getTime() + 7 * 24 * 3600 * 1000);
+    const thisWeek = weekItems
+      .filter(i => { const d = new Date(i.due_date); return d <= in7days; })
+      .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
+
+    main.innerHTML = `
+      <div class="top-row">
+        <div class="page-title">${t('home_title')}</div>
+        <div class="page-date">${new Date().toLocaleDateString(currentLang === 'pt' ? 'pt-PT' : 'en-US', { weekday:'long', day:'numeric', month:'long' })}</div>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <div class="card-label">${t('this_week')}</div>
+          ${thisWeek.length === 0
+            ? `<div class="empty">${t('no_deadlines_week')}</div>`
+            : thisWeek.map(i => `
+              <div class="today-item">
+                <span class="status-dot ${new Date(i.due_date) < now ? 'blocked' : 'progress'}"></span>
+                <span class="today-text">${i.kind === 'projeto' ? '🏁 ' : ''}${i.title}</span>
+                <span class="today-project">${i.project_name} · ${formatDue(i.due_date)}</span>
+              </div>
+            `).join('')}
+        </div>
+        <div class="card">
+          <div class="card-label">${t('total_earned')}</div>
+          <div class="earn-value">€ ${totalEarn.toLocaleString('pt-PT')}</div>
+          <div class="earn-compare">${paidProjects.length} ${t('paid_count')} · ${projects.filter(p=>p.status==='delivered').length} ${t('delivered_unpaid')} · ${projects.filter(p=>p.status==='active').length} ${t('active_count')}</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-label">${t('projects_label')}</div>
+        ${projects.length === 0
+          ? `<div class="empty">${t('no_projects')}</div>`
+          : projects.map(p => `
+            <div class="today-item" style="cursor:pointer;" onclick="toggleTasks(${p.id})">
+              <span class="status-dot ${p.status === 'paid' ? 'done' : (p.open_tasks > 0 ? 'progress' : 'todo')}"></span>
+              <span class="today-text">${p.name}</span>
+              <span class="today-project">${statusLabel(p.status || 'active')}</span>
+            </div>
+            <div class="tasks-box" id="tasks-${p.id}" style="display:none;"></div>
+          `).join('')}
+      </div>
+    `;
+  }
+
+  // ---------- PROJECTS ----------
+  let projectSearch = '';
+
+  async function renderProjects(main) {
+    const allProjects = pywebviewReady ? await api('get_projects') : [];
+    const projects = projectSearch
+      ? allProjects.filter(p => p.name.toLowerCase().includes(projectSearch.toLowerCase()))
+      : allProjects;
+
+    main.innerHTML = `
+      <div class="top-row">
+        <div class="page-title">${t('projects_title')}</div>
+        <button class="btn" onclick="openNewProjectModal()">${t('new_project')}</button>
+      </div>
+      <input type="text" class="search-input" placeholder="${t('search_placeholder')}" value="${projectSearch}" oninput="onProjectSearch(this.value)">
+      ${projects.length === 0
+        ? `<div class="card"><div class="empty">${t('no_projects_cta')}</div></div>`
+        : `<div class="projects-grid">${projects.map(projectCard).join('')}</div>`
+      }
+    `;
+  }
+
+  function onProjectSearch(value) {
+    projectSearch = value;
+    renderProjects(document.getElementById('main'));
+  }
+
+  const PROJECT_STATUS_NEXT = { active: 'delivered', delivered: 'paid', paid: 'active' };
+  function statusLabel(status) { return t('status_' + status) || status; }
+
+  function projectCard(p) {
+    const isPinned = !!p.pinned;
+    const status = p.status || 'active';
+    const overdue = p.due_date && status !== 'paid' && new Date(p.due_date) < new Date();
+    return `
+      <div class="project-card">
+        <div class="project-name-row">
+          <div class="project-name">${p.name} <span class="status-pill status-${status}">${statusLabel(status)}</span></div>
+          <span class="pin-btn ${isPinned ? 'pin-active' : ''}" onclick="togglePin(${p.id}, ${!isPinned})" title="Fixar">📌</span>
+        </div>
+        <div class="project-meta">${p.folder_path || t('no_folder')}</div>
+        ${p.due_date ? `<div class="project-meta ${overdue ? 'due-overdue' : ''}">${t('deadline_label')}: ${formatDue(p.due_date)}</div>` : ''}
+        <div class="project-value">€ ${Math.max(0, p.value_eur || 0).toLocaleString('pt-PT')}</div>
+        <div class="project-meta">${p.open_tasks} tarefa(s) por fazer</div>
+        <div class="project-actions">
+          <button class="btn btn-ghost btn-sm" onclick="handleOpenVSCode(${p.id}, '${(p.folder_path||'').replace(/\\/g,'\\\\')}')">${t('open_vscode')}</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleTasks(${p.id})">${t('tasks_btn')}</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleExplorer(${p.id}, '${(p.folder_path||'').replace(/\\/g,'\\\\')}')">${t('explorer_btn')}</button>
+        </div>
+        <div class="project-actions">
+          <button class="btn btn-ghost btn-sm" onclick="openEditProjectModal(${p.id})">${t('edit_btn')}</button>
+          <button class="btn btn-ghost btn-sm" onclick="cycleProjectStatus(${p.id}, '${status}')">${statusLabel(PROJECT_STATUS_NEXT[status])} →</button>
+          <button class="btn btn-danger btn-sm" onclick="removeProject(${p.id})">${t('delete_btn')}</button>
+        </div>
+        <div class="tasks-box" id="tasks-${p.id}" style="display:none;"></div>
+        <div class="explorer-box" id="explorer-${p.id}" style="display:none;"></div>
+      </div>
+    `;
+  }
+
+  async function cycleProjectStatus(projectId, currentStatus) {
+    await api('set_project_status', projectId, PROJECT_STATUS_NEXT[currentStatus]);
+    render('projects');
+  }
+
+  async function togglePin(projectId, pinned) {
+    await api('toggle_pin', projectId, pinned);
+    render('projects');
+  }
+
+  async function handleOpenVSCode(projectId, folderPath) {
+    if (!folderPath) {
+      const picked = await api('pick_folder');
+      if (!picked) return;
+      await api('set_project_folder', projectId, picked);
+      folderPath = picked;
+      render('projects');
+    }
+    await api('touch_project', projectId);
+    const res = await api('open_in_vscode', folderPath);
+    if (!res.ok) alert('Erro: ' + res.error);
+  }
+
+  async function toggleTasks(projectId) {
+    const box = document.getElementById(`tasks-${projectId}`);
+    if (box.style.display === 'block') { box.style.display = 'none'; return; }
+    box.style.display = 'block';
+    await loadTasks(projectId);
+  }
+
+  function priorityLabel(p) { return t('priority_' + (p || 'media')) || p; }
+  function getColumns() {
+    return [
+      { key: 'todo', label: t('col_todo') },
+      { key: 'progress', label: t('col_progress') },
+      { key: 'blocked', label: t('col_blocked') },
+      { key: 'done', label: t('col_done') },
+    ];
+  }
+
+  async function loadTasks(projectId) {
+    const box = document.getElementById(`tasks-${projectId}`);
+    const tasks = await api('get_tasks', projectId);
+    const columns = getColumns();
+
+    box.innerHTML = `
+      <div class="kanban" id="kanban-${projectId}">
+        ${columns.map(col => `
+          <div class="kanban-col" data-status="${col.key}" ondragover="event.preventDefault()" ondrop="onDropTask(event, ${projectId}, '${col.key}')">
+            <div class="kanban-col-title">${col.label} <span class="kanban-count">${tasks.filter(tk => tk.status === col.key).length}</span></div>
+            <div class="kanban-cards">
+              ${tasks.filter(tk => tk.status === col.key).map(tk => taskCard(tk, projectId)).join('')}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <button class="btn btn-ghost btn-sm add-task-toggle" onclick="toggleAddTaskForm(${projectId})">${t('new_task')}</button>
+      <div class="add-task-form" id="add-task-form-${projectId}" style="display:none;">
+        <div class="field">
+          <label>${t('task_title')}</label>
+          <input type="text" id="nt-title-${projectId}">
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>${t('due_date')}</label>
+            <input type="datetime-local" id="nt-due-${projectId}">
+          </div>
+          <div class="field">
+            <label>${t('priority')}</label>
+            <select id="nt-priority-${projectId}" class="field-select">
+              <option value="baixa">${t('priority_baixa')}</option>
+              <option value="media" selected>${t('priority_media')}</option>
+              <option value="alta">${t('priority_alta')}</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>${t('warn_hours')}</label>
+          <input type="number" id="nt-warn-${projectId}" value="24">
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" onclick="toggleAddTaskForm(${projectId})">${t('cancel')}</button>
+          <button class="btn" onclick="submitTask(${projectId})">${t('create')}</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function toggleAddTaskForm(projectId) {
+    const form = document.getElementById(`add-task-form-${projectId}`);
+    form.style.display = form.style.display === 'block' ? 'none' : 'block';
+    if (form.style.display === 'block') document.getElementById(`nt-title-${projectId}`).focus();
+  }
+
+  function taskCard(task, projectId) {
+    const subLabel = task.subtasks_total > 0 ? `${task.subtasks_done}/${task.subtasks_total}` : '';
+    return `
+      <div class="task-card" draggable="true"
+           ondragstart="event.dataTransfer.setData('text/plain', ${task.id})"
+           onclick="openTaskDetail(${task.id}, ${projectId})">
+        <div class="task-card-title ${task.status === 'done' ? 'task-done' : ''}">${task.title}</div>
+        <div class="task-card-meta">
+          <span class="priority-badge priority-${task.priority || 'media'}">${priorityLabel(task.priority)}</span>
+          ${task.due_date ? `<span class="task-due">${formatDue(task.due_date)}</span>` : ''}
+          ${subLabel ? `<span class="task-due">${subLabel}</span>` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  async function onDropTask(event, projectId, newStatus) {
+    const taskId = event.dataTransfer.getData('text/plain');
+    await api('set_task_status', parseInt(taskId), newStatus);
+    await loadTasks(projectId);
+    render('projects');
+  }
+
+  function formatDue(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString('pt-PT', { day:'2-digit', month:'2-digit' }) + ' ' + d.toLocaleTimeString('pt-PT', { hour:'2-digit', minute:'2-digit' });
+  }
+
+  async function submitTask(projectId) {
+    const title = document.getElementById(`nt-title-${projectId}`).value.trim();
+    const due = document.getElementById(`nt-due-${projectId}`).value;
+    const warn = parseInt(document.getElementById(`nt-warn-${projectId}`).value) || 24;
+    const priority = document.getElementById(`nt-priority-${projectId}`).value;
+    if (!title) { alert('Dá um título à tarefa.'); return; }
+    await api('add_task', projectId, title, due || null, warn, priority);
+    document.getElementById(`nt-title-${projectId}`).value = '';
+    document.getElementById(`nt-due-${projectId}`).value = '';
+    document.getElementById(`add-task-form-${projectId}`).style.display = 'none';
+    await loadTasks(projectId);
+    render('projects');
+  }
+
+  async function completeTask(taskId, projectId) {
+    await api('set_task_status', taskId, 'done');
+    await loadTasks(projectId);
+  }
+
+  async function removeTask(taskId, projectId) {
+    await api('delete_task', taskId);
+    await loadTasks(projectId);
+    closeModal('modal-task');
+  }
+
+  // ---------- TASK DETAIL MODAL ----------
+  let currentTaskContext = null;
+
+  async function openTaskDetail(taskId, projectId) {
+    currentTaskContext = { taskId, projectId };
+    const task = await api('get_task', taskId);
+    const subtasks = await api('get_subtasks', taskId);
+
+    document.getElementById('td-title').textContent = task.title;
+    document.getElementById('td-priority').value = task.priority || 'media';
+    document.getElementById('td-notes').value = task.notes || '';
+    renderSubtasks(subtasks);
+    openModal('modal-task');
+  }
+
+  function renderSubtasks(subtasks) {
+    document.getElementById('td-subtasks-list').innerHTML = subtasks.length === 0
+      ? '<div class="empty" style="padding:6px 0;">Sem subtarefas.</div>'
+      : subtasks.map(s => `
+        <div class="subtask-row">
+          <input type="checkbox" ${s.done ? 'checked' : ''} onchange="onToggleSubtask(${s.id}, this.checked)">
+          <span class="${s.done ? 'task-done' : ''}">${s.title}</span>
+          <span class="subtask-del" onclick="onDeleteSubtask(${s.id})">×</span>
+        </div>
+      `).join('');
+  }
+
+  async function onToggleSubtask(subtaskId, done) {
+    await api('toggle_subtask', subtaskId, done);
+    const subtasks = await api('get_subtasks', currentTaskContext.taskId);
+    renderSubtasks(subtasks);
+  }
+
+  async function onDeleteSubtask(subtaskId) {
+    await api('delete_subtask', subtaskId);
+    const subtasks = await api('get_subtasks', currentTaskContext.taskId);
+    renderSubtasks(subtasks);
+  }
+
+  async function addSubtask() {
+    const input = document.getElementById('td-new-subtask');
+    const title = input.value.trim();
+    if (!title) return;
+    await api('add_subtask', currentTaskContext.taskId, title);
+    input.value = '';
+    const subtasks = await api('get_subtasks', currentTaskContext.taskId);
+    renderSubtasks(subtasks);
+  }
+
+  async function saveTaskDetail() {
+    const { taskId, projectId } = currentTaskContext;
+    await api('set_task_priority', taskId, document.getElementById('td-priority').value);
+    await api('set_task_notes', taskId, document.getElementById('td-notes').value);
+    closeModal('modal-task');
+    await loadTasks(projectId);
+    render('projects');
+  }
+
+  function deleteCurrentTask() {
+    if (!confirm('Apagar esta tarefa?')) return;
+    removeTask(currentTaskContext.taskId, currentTaskContext.projectId);
+  }
+
+  // ---------- EXPLORER ----------
+  let explorerState = {};
+
+  async function toggleExplorer(projectId, folderPath) {
+    const box = document.getElementById(`explorer-${projectId}`);
+    if (box.style.display === 'block') { box.style.display = 'none'; return; }
+    if (!folderPath) { alert('Este projeto ainda não tem pasta associada.'); return; }
+    box.style.display = 'block';
+    explorerState[projectId] = { root: folderPath, current: '' };
+    await loadExplorerDir(projectId);
+  }
+
+  async function loadExplorerDir(projectId, relative = '') {
+    const state = explorerState[projectId];
+    state.current = relative;
+    const box = document.getElementById(`explorer-${projectId}`);
+    const res = await api('list_dir', state.root, relative);
+
+    if (!res.ok) {
+      box.innerHTML = `<div class="empty">${res.error}</div>`;
+      return;
+    }
+
+    const crumbs = relative ? relative.split('/') : [];
+    const breadcrumb = ['raiz', ...crumbs].map((c, i) => {
+      const path = crumbs.slice(0, i).join('/');
+      return `<span class="crumb" onclick="loadExplorerDir(${projectId}, '${path}')">${c}</span>`;
+    }).join('<span class="crumb-sep">/</span>');
+
+    box.innerHTML = `
+      <div class="explorer-breadcrumb">${breadcrumb}</div>
+      <div class="explorer-list">
+        ${res.entries.length === 0 ? '<div class="empty" style="padding:8px 0;">Pasta vazia.</div>' :
+          res.entries.map(e => `
+            <div class="explorer-row" onclick="${e.is_dir
+              ? `loadExplorerDir(${projectId}, '${e.path}')`
+              : `openFileEditor(${projectId}, '${e.path}')`}">
+              <span class="explorer-icon">${e.is_dir ? '📁' : '📄'}</span>
+              <span>${e.name}</span>
+            </div>
+          `).join('')}
+      </div>
+      <div id="editor-${projectId}"></div>
+    `;
+  }
+
+  async function openFileEditor(projectId, relativePath) {
+    const state = explorerState[projectId];
+    const res = await api('read_file', state.root, relativePath);
+    const editorBox = document.getElementById(`editor-${projectId}`);
+
+    if (!res.ok) {
+      editorBox.innerHTML = `<div class="empty">${res.error}</div>`;
+      return;
+    }
+
+    editorBox.innerHTML = `
+      <div class="editor-header">
+        <span class="editor-filename">${relativePath}</span>
+        <button class="btn btn-sm" onclick="saveFile(${projectId}, '${relativePath}')">Guardar</button>
+      </div>
+      <textarea class="editor-textarea" id="editor-text-${projectId}">${escapeHtml(res.content)}</textarea>
+    `;
+  }
+
+  async function saveFile(projectId, relativePath) {
+    const state = explorerState[projectId];
+    const content = document.getElementById(`editor-text-${projectId}`).value;
+    const res = await api('write_file', state.root, relativePath, content);
+    if (res.ok) {
+      const header = document.querySelector(`#editor-${projectId} .editor-filename`);
+      if (header) { header.textContent = relativePath + ' ✓ guardado'; setTimeout(() => header.textContent = relativePath, 1500); }
+    } else {
+      alert('Erro ao guardar: ' + res.error);
+    }
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  async function openVSCode(path) {
+    const res = await api('open_in_vscode', path);
+    if (!res.ok) alert('Erro: ' + res.error);
+  }
+
+  async function removeProject(id) {
+    if (!confirm('Apagar este projeto e as suas tarefas?')) return;
+    await api('delete_project', id);
+    render('projects');
+  }
+
+  // ---------- NEW/EDIT PROJECT MODAL ----------
+  let editingProjectId = null;
+
+  function openModal(id) { document.getElementById(id).classList.add('open'); }
+
+  function openNewProjectModal() {
+    editingProjectId = null;
+    document.getElementById('pm-title').textContent = t('new_project_title');
+    document.getElementById('pm-submit-btn').textContent = t('create');
+    document.getElementById('np-name').value = '';
+    document.getElementById('np-desc').value = '';
+    document.getElementById('np-folder').value = '';
+    document.getElementById('np-value').value = '';
+    document.getElementById('np-due').value = '';
+    document.getElementById('np-warn').value = '48';
+    openModal('modal-project');
+  }
+
+  async function openEditProjectModal(projectId) {
+    const p = await api('get_project', projectId);
+    editingProjectId = projectId;
+    document.getElementById('pm-title').textContent = t('edit_project_title');
+    document.getElementById('pm-submit-btn').textContent = t('save');
+    document.getElementById('np-name').value = p.name || '';
+    document.getElementById('np-desc').value = p.description || '';
+    document.getElementById('np-folder').value = p.folder_path || '';
+    document.getElementById('np-value').value = p.value_eur || '';
+    document.getElementById('np-due').value = p.due_date || '';
+    document.getElementById('np-warn').value = p.warn_hours_before || 48;
+    openModal('modal-project');
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+  }
+
+  async function pickFolder() {
+    const path = await api('pick_folder');
+    if (path) document.getElementById('np-folder').value = path;
+  }
+
+  async function submitProject() {
+    const name = document.getElementById('np-name').value.trim();
+    const desc = document.getElementById('np-desc').value.trim();
+    const folder = document.getElementById('np-folder').value.trim();
+    const value = Math.max(0, parseFloat(document.getElementById('np-value').value) || 0);
+    const due = document.getElementById('np-due').value || null;
+    const warn = parseInt(document.getElementById('np-warn').value) || 48;
+    if (!name) { alert('Dá um nome ao projeto.'); return; }
+
+    if (editingProjectId) {
+      await api('edit_project', editingProjectId, name, folder, value, desc, due, warn);
+    } else {
+      await api('add_project', name, folder, value, desc, due, warn);
+    }
+    closeModal('modal-project');
+    render('projects');
+  }
+
+  // fallback in case pywebviewready already fired before the script ran
+  (async () => {
+    if (window.pywebview) { pywebviewReady = true; await loadPreferences(); }
+    render();
+  })();
+</script>
+
+</body>
+</html>
